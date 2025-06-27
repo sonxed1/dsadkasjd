@@ -29,7 +29,7 @@ AGENT_LINKS = {
     str(FRIEND_USER_ID): "secondlife:///app/agent/05be3255-01f9-4977-b618-07c6ad9c5209/about"
 }
 
-SL_URL = "http://simhost-06efdb803b0a6b13a.agni.secondlife.io:12046/cap/119565ef-ba42-bc3f-a415-9025ff618ee7"
+SL_URL = "http://simhost-06efdb803b0a6b13a.agni.secondlife.io:12046/cap/8c5e5260-497e-d8e3-c59a-9c16e2fe1397"
 
 presence_tracker = {
     "fdf2125c-7149-44e6-aacf-24f1006fbbd6": {"last_seen": 0, "online": False, "discord_id": YOUR_USER_ID},
