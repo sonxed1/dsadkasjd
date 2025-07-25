@@ -165,23 +165,29 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-@bot.command()
-async def startvisitors(ctx):
+async def handle_text(message):
     global visitor_notifications_enabled
-    if ctx.author.id in allowed_user_ids:
-        visitor_notifications_enabled = True
-        await ctx.send("✅ Visitor notifications enabled.")
-    else:
-        await ctx.send("🚫 You're not allowed to use this command.")
 
-@bot.command()
-async def stopvisitors(ctx):
-    global visitor_notifications_enabled
-    if ctx.author.id in allowed_user_ids:
+    content = message.content.strip().lower()
+
+    if content == "!startvisitors":
+        visitor_notifications_enabled = True
+        await message.channel.send("✅ Visitor notifications enabled.")
+        return
+
+    if content == "!stopvisitors":
         visitor_notifications_enabled = False
-        await ctx.send("❌ Visitor notifications disabled.")
-    else:
-        await ctx.send("🚫 You're not allowed to use this command.")
+        await message.channel.send("❌ Visitor notifications disabled.")
+        return
+
+    agent_link = AGENT_LINKS.get(str(message.author.id), message.author.name)
+    msg_to_send = f"{agent_link} (on Discord): {message.content}"
+    if message.attachments:
+        attachments_str = ", ".join([a.url for a in message.attachments])
+        msg_to_send += f"\nAttachments: {attachments_str}"
+
+    response = requests.post(SL_URL, data={"message": msg_to_send}, timeout=5)
+    print(f"Message sent to SL. Status: {response.status_code}")
 
 async def handle_play(message):
     url = message.content.split(" ", 1)[1]
@@ -208,16 +214,6 @@ async def handle_stop(message):
     response = requests.post(SL_URL, data={"message": "STOP_AUDIO"}, timeout=5)
     print(f"Stop command sent. Status: {response.status_code}")
     await message.channel.send("⏹️ Stopped audio in Second Life")
-
-async def handle_text(message):
-    agent_link = AGENT_LINKS.get(str(message.author.id), message.author.name)
-    msg_to_send = f"{agent_link} (on Discord): {message.content}"
-    if message.attachments:
-        attachments_str = ", ".join([a.url for a in message.attachments])
-        msg_to_send += f"\nAttachments: {attachments_str}"
-
-    response = requests.post(SL_URL, data={"message": msg_to_send}, timeout=5)
-    print(f"Message sent to SL. Status: {response.status_code}")
 
 def check_presence():
     while True:
