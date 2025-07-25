@@ -36,7 +36,9 @@ presence_tracker = {
     "05be3255-01f9-4977-b618-07c6ad9c5209": {"last_seen": 0, "online": False, "discord_id": FRIEND_USER_ID}
 }
 
-# Flask Routes
+visitor_notifications_enabled = True
+excluded_visitors = {"sunxy", "woopy"}
+
 @app.route('/')
 def home():
     return "Bot is running!"
@@ -76,17 +78,26 @@ def send_message():
 
 @app.route('/visitor_update', methods=['POST'])
 def visitor_update():
+    global visitor_notifications_enabled
+
+    if not visitor_notifications_enabled:
+        return "Visitor notifications are disabled", 200
+
     arrivals = [a.strip() for a in request.form.get('arrivals', '').split(',') if a.strip()]
     departures = [d.strip() for d in request.form.get('departures', '').split(',') if d.strip()]
 
     for arrival in arrivals:
         formatted_name, profile_url = parse_visitor_name(arrival)
+        if formatted_name.lower() in excluded_visitors:
+            continue
         linked_name = f"[{formatted_name}]({profile_url})"
         message = f"👋 New visitor: {linked_name} has entered the area!"
         asyncio.run_coroutine_threadsafe(send_dm([YOUR_USER_ID, FRIEND_USER_ID], message), bot.loop)
 
     for departure in departures:
         formatted_name, profile_url = parse_visitor_name(departure)
+        if formatted_name.lower() in excluded_visitors:
+            continue
         linked_name = f"[{formatted_name}]({profile_url})"
         message = f"👋 {linked_name} has left the area!"
         asyncio.run_coroutine_threadsafe(send_dm([YOUR_USER_ID, FRIEND_USER_ID], message), bot.loop)
@@ -109,7 +120,6 @@ def update_presence():
 
     return "OK"
 
-# Helpers
 def parse_visitor_name(raw_name):
     if '(' in raw_name:
         formatted_name = raw_name.rsplit('(', 1)[0].strip()
@@ -140,7 +150,6 @@ def is_valid_youtube_url(url):
     )
     return re.match(youtube_regex, url) is not None
 
-# Bot events
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
@@ -153,6 +162,26 @@ async def on_message(message):
             await handle_stop(message)
         else:
             await handle_text(message)
+
+    await bot.process_commands(message)
+
+@bot.command()
+async def startvisitors(ctx):
+    global visitor_notifications_enabled
+    if ctx.author.id in allowed_user_ids:
+        visitor_notifications_enabled = True
+        await ctx.send("✅ Visitor notifications enabled.")
+    else:
+        await ctx.send("🚫 You're not allowed to use this command.")
+
+@bot.command()
+async def stopvisitors(ctx):
+    global visitor_notifications_enabled
+    if ctx.author.id in allowed_user_ids:
+        visitor_notifications_enabled = False
+        await ctx.send("❌ Visitor notifications disabled.")
+    else:
+        await ctx.send("🚫 You're not allowed to use this command.")
 
 async def handle_play(message):
     url = message.content.split(" ", 1)[1]
@@ -190,7 +219,6 @@ async def handle_text(message):
     response = requests.post(SL_URL, data={"message": msg_to_send}, timeout=5)
     print(f"Message sent to SL. Status: {response.status_code}")
 
-# Presence checker
 def check_presence():
     while True:
         current_time = time.time()
@@ -199,12 +227,10 @@ def check_presence():
                 data["online"] = False
         time.sleep(60)
 
-# Start Flask server
 def run():
     app.run(host="0.0.0.0", port=8080)
 
-# Main
+# Start both Flask and bot
 if __name__ == "__main__":
     Thread(target=run).start()
-    Thread(target=check_presence, daemon=True).start()
-    asyncio.run(bot.start(DISCORD_TOKEN))
+    bot.run(DISCORD_TOKEN)
